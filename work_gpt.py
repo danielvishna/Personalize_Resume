@@ -2,10 +2,7 @@ import time
 from selenium import webdriver
 import random
 from selenium.webdriver.common.by import By
-# import docx
 import PyPDF2
-import tkinter as tk
-from tkinter import messagebox
 import pyperclip
 
 personalized_resume = False
@@ -23,21 +20,12 @@ def read_pdf(file_path):
         return '\n'.join(text)
 
 
-# def read_docx(file_path):
-#     doc = docx.Document(file_path)
-#     text = []
-#     for paragraph in doc.paragraphs:
-#         text.append(paragraph.text)
-#     return '\n'.join(text)
-
-
 def generate_personalized_resume():
     global pr
     global personalized_resume
-    global text_generat_b
     global personalize_resume
     global personalize_CL
-    url = url_entry.get()
+    url = url_entry
     time.sleep(random.uniform(0.0, 1.0))
     op = webdriver.ChromeOptions()
     op.add_argument('headless')
@@ -68,40 +56,34 @@ def generate_personalized_resume():
                      f"And here is my resume: \n {CV}"
 
     personalized_resume = True
-    generate_CV = tk.Button(window, text="Copy Resume", command=copy_resume)
-    generate_CV.pack()
-    generate_CV = tk.Button(window, text="Copy Cover Letter", command=copy_cover_letter)
-    generate_CV.pack()
-    text_generat_b = "New Generate"
 
 
 def copy_resume():
     pyperclip.copy(personalize_resume)
-    messagebox.showinfo("Personalized Resume", "Content copied to clipboard!")
+    print("Content copied to clipboard!")
+
 
 def copy_cover_letter():
     pyperclip.copy(personalize_CL)
-    messagebox.showinfo("Personalized Cover Letter", "Content copied to clipboard!")
+    print("Content copied to clipboard!")
 
 
 if __name__ == '__main__':
-    # Create the GUI window
+    inputs = "1"
     personalize_resume = ""
     personalize_CL = ""
-    window = tk.Tk()
-    window.title("Personalized Resume Generator")
-    text_generat_b = "Generate"
 
-    # Create URL input label and entry field
-    url_label = tk.Label(window, text="Enter the URL:")
-    url_label.pack()
-    url_entry = tk.Entry(window)
-    url_entry.pack()
-
-    # Create generate button
-    generate_button = tk.Button(window, text=text_generat_b, command=generate_personalized_resume)
-    generate_button.pack()
-
-    # Run the GUI event loop
-    window.mainloop()
+    while True:
+        print("enter 1 for insert new url\nenter 2 for copy the resume\nand 3 for get the cover letter\nfor brake "
+              "enter anything else")
+        inputs = input()
+        if inputs == "1":
+            url_entry = input("enter the url\n")
+            generate_personalized_resume()
+        elif inputs == "2":
+            copy_resume()
+        elif inputs == "3":
+            copy_cover_letter()
+        else:
+            break
 
