@@ -26,24 +26,26 @@ def generate_personalized_resume():
     global personalize_resume
     global personalize_CL
     url = url_entry
-    time.sleep(random.uniform(0.0, 1.0))
-    op = webdriver.ChromeOptions()
-    op.add_argument('headless')
-    driver = webdriver.Edge(options=op)
-    driver.get(url)
-    titel = driver.find_elements(By.XPATH,
-                                 "//h1[@class='top-card-layout__title font-sans text-lg papabear:text-xl font-bold "
-                                 "leading-open text-color-text mb-0 topcard__title']")[0].text
-    time.sleep(random.uniform(0.0, 0.6))
-    compeny = driver.find_elements(By.XPATH, "//a[@class='topcard__org-name-link topcard__flavor--black-link']")[0].text
-    time.sleep(random.uniform(0.0, 0.3))
-    button = driver.find_elements(By.XPATH,
-                                  "//button[@class='show-more-less-html__button show-more-less-html__button--more']")
-    button[0].click()
-    time.sleep(random.uniform(0.0, 0.9))
-    dis = driver.find_elements(By.XPATH, "//div[@class='description__text description__text--rich']")[0].text[:-9]
-    time.sleep(random.uniform(0.0, 1.5))
-    driver.quit()
+    try:
+        time.sleep(random.uniform(0.0, 1.0))
+        op = webdriver.EdgeOptions()
+        op.add_argument('headless')
+        driver = webdriver.Edge(options=op)
+        driver.get(url)
+        titel = driver.find_elements(By.XPATH,
+                                     "//h1[@class='top-card-layout__title font-sans text-lg papabear:text-xl font-bold "
+                                     "leading-open text-color-text mb-0 topcard__title']")[0].text
+        time.sleep(random.uniform(0.0, 0.6))
+        compeny = driver.find_elements(By.XPATH, "//a[@class='topcard__org-name-link topcard__flavor--black-link']")[0].text
+        time.sleep(random.uniform(0.0, 0.3))
+        button = driver.find_elements(By.XPATH, '//button[text()="\n        Show more\n\n        "]')
+        button[0].click()
+        time.sleep(random.uniform(0.0, 0.9))
+        dis = driver.find_elements(By.XPATH, "//div[@class='description__text description__text--rich']")[0].text[:-9]
+        time.sleep(random.uniform(0.0, 1.5))
+        driver.quit()
+    except:
+        print("There is problem in using selenium")
     file_path = 'C:\\Users\\DanielV\\Documents\\CV\\Daniel Vishna CV.pdf'  # Replace with the actual path to your CV file
     CV = read_pdf(file_path)
     personalize_resume = f"Please personalize my resume for this {titel} role at {compeny}.\n" \
