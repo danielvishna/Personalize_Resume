@@ -52,7 +52,6 @@ def generate_personalized_resume():
                          f"Here is the job description: \n{dis} \n" \
                          f"And here is my resume: \n {CV}"
     pr = personalize_resume
-    # pyperclip.copy(personalize_resume)
     personalize_CL = f"Please write a personalized cover letter for this {titel} role at {compeny}.\n" \
                      f"Here is the job description: \n{dis} \n" \
                      f"And here is my resume: \n {CV}"
