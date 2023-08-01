@@ -1,6 +1,9 @@
 import time
 from selenium import webdriver
 import random
+
+from selenium.common import WebDriverException, SessionNotCreatedException
+from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException, InvalidArgumentException
 from selenium.webdriver.common.by import By
 import PyPDF2
 import pyperclip
@@ -32,14 +35,13 @@ def read_pdf(file_path):
         return '\n'.join(text)
 
 
-def generate_personalized_resume():
+def scraping_job_data(url):
     """
-    Generates a personalized resume for a given URL.
+    Scrapes job information from a given URL.
 
     Returns:
         Job or None: A named tuple representing job information (title, company, description) if successful, otherwise None.
     """
-    url = url_entry
     try:
         # XPaths for extracting job title, company, and job description from the LinkedIn job page.
         title_tag = "//h1[@class='top-card-layout__title font-sans text-lg papabear:text-xl font-bold leading-open " \
@@ -48,29 +50,37 @@ def generate_personalized_resume():
         button_tag = '//button[text()="\n        Show more\n\n        "]'
         description_tag = "//div[@class='description__text description__text--rich']"
 
-        time.sleep(random.uniform(0.0, 0.3))
         # Set up the Edge web driver in headless mode
         op = webdriver.EdgeOptions()
         op.add_argument('headless')
         op.add_argument("--incognito")
         driver = webdriver.Edge(options=op)
         driver.get(url)
+        time.sleep(random.uniform(0.0, 0.3))
 
         # Extract job title, company, and description from the page
-        title = driver.find_elements(By.XPATH, title_tag)[0].text
+        title = driver.find_element(By.XPATH, title_tag).text
         time.sleep(random.uniform(0.0, 0.2))
-        company = driver.find_elements(By.XPATH, company_tag)[0].text
+        company = driver.find_element(By.XPATH, company_tag).text
         time.sleep(random.uniform(0.0, 0.1))
-        button = driver.find_elements(By.XPATH, button_tag)
-        button[0].click()
+        button = driver.find_element(By.XPATH, button_tag)
+        button.click()
         time.sleep(random.uniform(0.0, 0.4))
         description = driver.find_elements(By.XPATH, description_tag)[0].text[:-9]  # Remove last 9 characters
 
         driver.quit()
+        return Job(title, company, description)
+    except (NoSuchElementException, NoSuchAttributeException):
+        # Handle the exception here
+        print(
+            "Error: Unable to find job elements on the page. Please recheck the URL, and contact the developer if the "
+            "error still occurs for an update.")
+        return
+    except InvalidArgumentException:
+        print("Please recheck the URL")
+        return
     except:
-        raise Exception("There is a problem using Selenium")
-
-    return Job(title, company, description)
+        print("There is a problem contact the developer")
 
 
 def copy_resume(job, cv):
@@ -125,11 +135,10 @@ if __name__ == '__main__':
         inputs = input()
         if inputs == "1":
             url_entry = input("Enter the URL:\n")
-            job = generate_personalized_resume()
+            job = scraping_job_data(url_entry)
         elif inputs == "2":
             copy_resume(job, CV)
         elif inputs == "3":
             copy_cover_letter(job, CV)
         else:
             break
-
