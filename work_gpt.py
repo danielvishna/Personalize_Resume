@@ -11,40 +11,13 @@ import os
 import openai
 from collections import namedtuple
 import docx2txt
-import fitz
 import urllib.parse
 
 # Define a named tuple 'Job' to represent job information (title, company, description)
 Job = namedtuple('Job', ['title', 'company', 'description'])
 
 
-# def read_pdf(file_path):
-#     """
-#     Reads a PDF file and extracts text from all pages.
-#
-#     Args:
-#         file_path (str): The file path to the PDF file.
-#
-#     Returns:
-#         str: The concatenated text extracted from all pages of the PDF, or None if there was an error.
-#     """
-#     try:
-#         text = []
-#         pdf_document = fitz.open(file_path)
-#         for page_number in range(pdf_document.page_count):
-#             page = pdf_document.load_page(page_number)
-#             text.append(page.get_text())
-#         pdf_document.close()
-#         return '\n'.join(text).replace("  ", " ").replace("\n\n", "\n")
-#     except fitz.errors.PyMuPDFError as e:
-#         print(f"Error while reading the PDF: {e}")
-#         return None
-#     except FileNotFoundError as e:
-#         print(f"Error: The file '{file_path}' does not exist.")
-#         return None
-#     except Exception as e:
-#         print(f"An unexpected error occurred while reading the PDF: {e}")
-#         return None
+
 
 def read_pdf(file_path):
     """
