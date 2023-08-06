@@ -2,93 +2,22 @@ import sys
 import time
 from selenium import webdriver
 import random
-import re
 from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException, InvalidArgumentException
 from selenium.webdriver.common.by import By
-import PyPDF2
 import pyperclip
 import os
 import openai
 from collections import namedtuple
-import docx2txt
 import urllib.parse
+import logging
+
+from files_works import Resume
 
 # Define a named tuple 'Job' to represent job information (title, company, description)
 Job = namedtuple('Job', ['title', 'company', 'description'])
 
 
 
-
-def read_pdf(file_path):
-    """
-    Reads a PDF file and extracts text from all pages.
-
-    Args:
-        file_path (str): The file path to the PDF file.
-
-    Returns:
-        str: The concatenated text extracted from all pages of the PDF.
-    """
-    """
-      Reads a PDF file and extracts text from all pages.
-
-      Args:
-          file_path (str): The file path to the PDF file.
-
-      Returns:
-          str: The concatenated text extracted from all pages of the PDF, or None if there was an error.
-      """
-    try:
-        with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            num_pages = len(pdf_reader.pages)
-            text = []
-            for page_number in range(num_pages):
-                page = pdf_reader.pages[page_number]
-                text.append(page.extract_text().strip())
-            return '\n'.join(text)
-    except PyPDF2.utils.PdfReadError as e:
-        print(f"Error while reading the PDF: {e}")
-        return None
-    except FileNotFoundError as e:
-        print(f"Error: The file '{file_path}' does not exist.")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred while reading the PDF: {e}")
-        return None
-
-
-def read_word(file_path):
-    """
-    Reads a docx file and extracts text.
-
-    Args:
-        file_path (str): The file path to the docx file.
-
-    Returns:
-        str: The extracted text from the docx, or None if there was an error.
-    """
-    try:
-        text = docx2txt.process(file_path)
-        return text
-    except docx2txt.exceptions.DocxInvalidFileError as e:
-        print(f"Error while reading the docx: {e}")
-        return None
-    except FileNotFoundError as e:
-        print(f"Error: The file '{file_path}' does not exist.")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred while reading the docx: {e}")
-        return None
-
-
-def read_file(file_path):
-    if file_path[-5:] == ".docx" or file_path[-4:] == ".doc":
-        return read_word(file_path)
-    elif file_path[-4:] == ".pdf":
-        return read_pdf(file_path)
-    else:
-        return None
 
 
 def scraping_job_data(url):
@@ -193,6 +122,8 @@ def is_valid_url(url):
 
 if __name__ == '__main__':
     # Check if OpenAI API key is set
+    logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
+
     if "OPENAI_API_KEY" not in os.environ:
         print("Error: OpenAI API key is not set.")
         print("Please set the environment variable 'OPENAI_API_KEY' with your OpenAI API key.")
@@ -202,10 +133,11 @@ if __name__ == '__main__':
     openai.api_key = os.environ["OPENAI_API_KEY"]
 
     # Replace with the actual path to your CV file
-    file_path = 'C:\\Users\\DanielV\\Documents\\CV\\Daniel Vishna CV.docx'
-    CV = read_file(file_path)
+    file_path = 'C:\\Users\\DanielV\\Documents\\CV\\Daniel Vishna CV.pdf'
+    resume = Resume()
+    CV = resume.read_file(file_path)
     if not CV:
-        print("There is a problem with the resume file. Please check that you entered the correct file path.")
+        logging.error("There is a problem with the resume file. Please check that you entered the correct file path.")
         sys.exit()
 
     job = None
