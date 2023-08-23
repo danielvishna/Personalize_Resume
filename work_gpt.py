@@ -17,9 +17,6 @@ from files_works import Resume
 Job = namedtuple('Job', ['title', 'company', 'description'])
 
 
-
-
-
 def scraping_job_data(url):
     """
     Scrapes job information from a given URL.
@@ -51,7 +48,7 @@ def scraping_job_data(url):
         button = driver.find_element(By.XPATH, button_tag)
         button.click()
         time.sleep(random.uniform(0.0, 0.4))
-        description = driver.find_elements(By.XPATH, description_tag)[0].text[:-9]  # Remove last 9 characters
+        description = driver.find_element(By.XPATH, description_tag).text[:-9]  # Remove last 9 characters
         return Job(title, company, description)
     except (NoSuchElementException, NoSuchAttributeException):
         # Handle the exception here
@@ -68,17 +65,26 @@ def scraping_job_data(url):
         driver.quit()
 
 
-def create_promt(job, cv, is_cove_letter=True):
-    promt = f"{job.title} role at {job.company}.\nHere is the job description: \n{job.description}\n" \
-            f"And here is my resume: \n {cv}".replace("  ", " ").replace("\n\n", "\n")
+def create_prompt(job, cv, is_cove_letter=True):
+    prompt = f'{job.title} role at {job.company}.\nHere is the job description: \n<job description>{job.description}' \
+             f'<\\job description>\nAnd here is my resume: \n <resume>{cv}<\\resume>'.replace("  ", " "). \
+        replace("\n\n", "\n")
     if is_cove_letter:
-        promt = "Please write a personalized cover letter for this " + promt
+        prompt = "Please write a personalized cover letter for this " + prompt
     else:
-        promt = "Please personalize my resume for this " + promt
-    return promt
+        prompt = "Please personalize my resume for this " + prompt
+    return prompt
 
 
-def copy_resume(job, cv):
+def call_gpt(system_content, user_content):
+    chat_completion = openai.ChatCompletion.create(model="gpt-3.5-turbo",
+                                                   messages=[{"role": "system", "content": system_content},
+                                                             {"role": "user", "content": user_content}])
+    answer = chat_completion['choices'][0]['message']['content']
+    pyperclip.copy(answer)
+
+
+def copy_resume(job, cv, use_gpt):
     """
     Copies a personalized resume and job description to the clipboard.
 
@@ -86,12 +92,21 @@ def copy_resume(job, cv):
         job (Job): A named tuple containing job information (title, company, description).
         cv (str): The content of the resume to be copied.
     """
-    personalize_resume = create_promt(job, cv, False)
-    pyperclip.copy(personalize_resume)
-    print("Content copied to clipboard!")
+    system_content = "You are a skilled resume personalization expert. Your expertise lies in customizing candidate " \
+                     "resumes to fit specific job roles, even when their qualifications may not perfectly match the " \
+                     "requirements. You will receive candidate resumes and job descriptions marked up with XML " \
+                     "tags.Your objective is to personalize and ensure candidates' resumes are tailored effectively," \
+                     " showcasing their relevant skills and experiences for each job."
+    personalize_resume = create_prompt(job, cv, False)
+    if use_gpt:
+        call_gpt(system_content, personalize_resume)
+        print("Personalize resume copied to clipboard!")
+    else:
+        pyperclip.copy(system_content + "\n" + personalize_resume)
+        print("Personalize resume prompt copied to clipboard!")
 
 
-def copy_cover_letter(job, cv):
+def copy_cover_letter(job, cv, use_gpt):
     """
     Copies a personalized cover letter to the clipboard.
 
@@ -99,17 +114,19 @@ def copy_cover_letter(job, cv):
         job (Job): A named tuple containing job information (title, company, description).
         cv (str): The content of the resume to be included in the cover letter.
     """
-    personalize_CL = create_promt(job, cv)
-    system_content = 'You are a recruitment consultant who helps candidates write cover letters for jobs.' \
-                     'Help them stand out for the job even if they don\'t meet all the job requirements.'
+    cover_letter = create_prompt(job, cv)
 
-    # Use OpenAI GPT-3.5 Turbo model to generate the cover letter content
-    chat_completion = openai.ChatCompletion.create(model="gpt-3.5-turbo",
-                                                   messages=[{"role": "system", "content": system_content},
-                                                             {"role": "user", "content": personalize_CL}])
-    answer = chat_completion['choices'][0]['message']['content']
-    pyperclip.copy(answer)
-    print("Content copied to clipboard!")
+    system_content = "You are an expert recruitment consultant specializing in crafting compelling cover letters for " \
+                     "job candidates. You excel at composing responses that help candidates shine, even when they " \
+                     "don't fully meet the job requirements. You will receive job descriptions and the candidate's" \
+                     " resume, marked up with XML tags.Your goal is to provide expert-level guidance that ensures " \
+                     "candidates stand out and make a strong impression in their cover letters."
+    if use_gpt:
+        call_gpt(system_content, cover_letter)
+        print("Cover letter copied to clipboard!")
+    else:
+        pyperclip.copy(system_content + "\n" + cover_letter)
+        print("Cover letter prompt copied to clipboard!")
 
 
 def is_valid_url(url):
@@ -123,14 +140,27 @@ def is_valid_url(url):
 if __name__ == '__main__':
     # Check if OpenAI API key is set
     logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
+    use_gpt = True
+    while True:
+        input_gpt = input("Do you want to use OpenAI automation (yes, no or exit)? If you write no, you will need to"
+                          " enter manually the copied prompt (use chatgpt) \n")
+        if input_gpt.lower() == "yes":
 
-    if "OPENAI_API_KEY" not in os.environ:
-        print("Error: OpenAI API key is not set.")
-        print("Please set the environment variable 'OPENAI_API_KEY' with your OpenAI API key.")
-        sys.exit(1)
+            if "OPENAI_API_KEY" not in os.environ:
+                print("Error: OpenAI API key is not set.")
+                print("Please set the environment variable 'OPENAI_API_KEY' with your OpenAI API key.")
+                sys.exit()
 
-    # Set your OpenAI API key
-    openai.api_key = os.environ["OPENAI_API_KEY"]
+            # Set your OpenAI API key
+            openai.api_key = os.environ["OPENAI_API_KEY"]
+            break
+        elif input_gpt.lower() == "no":
+            use_gpt = False
+            break
+        elif input_gpt.lower() == "exit":
+            sys.exit()
+        else:
+            print("Pleas enter only yes, no or exit.")
 
     # Replace with the actual path to your CV file
     file_path = 'C:\\Users\\DanielV\\Documents\\CV\\Daniel Vishna CV.pdf'
@@ -157,15 +187,14 @@ if __name__ == '__main__':
                 break
             job = scraping_job_data(url_entry)
         else:
-            print("Enter 1 to insert a new URL, 2 to copy the resume, 3 to get the cover letter, or 'exit' to quit the "
-                  "program.")
-            inputs = input()
+            inputs = input("Enter 1 to insert a new URL, 2 to get personalize resume, 3 to get the cover letter,"
+                           " or 'exit' to quit the program.\n")
             if inputs == "1":
                 url_entry = input("Enter the URL:\n")
                 job = scraping_job_data(url_entry)
             elif inputs == "2":
-                copy_resume(job, CV)
+                copy_resume(job, CV, use_gpt)
             elif inputs == "3":
-                copy_cover_letter(job, CV)
+                copy_cover_letter(job, CV, use_gpt)
             elif inputs.lower() == "exit":
                 break
