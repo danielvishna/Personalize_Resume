@@ -1,103 +1,14 @@
 import os
 import sys
-import time
-import random
-import logging
 import pyperclip
-import urllib.parse
-from collections import namedtuple
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException, InvalidArgumentException
-from selenium.webdriver.common.by import By
 import openai
 
 # Importing the Resume class from the files_works module
 from files_works import Resume
-
-# Define a named tuple 'Job' to represent job information (title, company, description)
-Job = namedtuple('Job', ['title', 'company', 'description'])
+from job import *
 
 
 # Define custom exceptions
-
-class ScrapingError(Exception):
-    """Custom exception for scraping errors."""
-
-
-class InvalidURLException(ScrapingError):
-    """Exception raised for invalid URL."""
-
-
-class PageElementNotFoundError(ScrapingError):
-    """Exception raised when a required page element is not found."""
-
-
-class PageLoadError(ScrapingError):
-    """Exception raised when there is an issue loading the page."""
-
-
-def scraping_job_data(url):
-    """
-    Scrapes job information from a given URL.
-
-    Args:
-        url (str): The URL of the job posting on LinkedIn.
-
-    Returns:
-        Job or None: A named tuple representing job information (title, company, description) if successful, otherwise None.
-    """
-    # Set up the Edge web driver in headless mode
-    edge_options = webdriver.EdgeOptions()
-    edge_options.add_argument('headless')
-    edge_options.add_argument("--incognito")
-    driver = webdriver.Edge(options=edge_options)
-    try:
-        if not is_valid_url(url):
-            raise InvalidURLException("Invalid URL")
-        # XPaths for extracting job title, company, and job description from the LinkedIn job page.
-        title_tag = "//h1[@class='top-card-layout__title font-sans text-lg papabear:text-xl font-bold leading-open " \
-                    "text-color-text mb-0 topcard__title']"
-        company_tag = "//a[@class='topcard__org-name-link topcard__flavor--black-link']"
-        button_tag = '//button[text()="\n        Show more\n\n        "]'
-        description_tag = "//div[@class='description__text description__text--rich']"
-
-        driver.get(url)
-        time.sleep(random.uniform(0.0, 0.3))
-
-        # Extract job title, company, and description from the page
-        title = driver.find_element(By.XPATH, title_tag).text
-        time.sleep(random.uniform(0.0, 0.2))
-        company = driver.find_element(By.XPATH, company_tag).text
-        time.sleep(random.uniform(0.0, 0.1))
-        button = driver.find_element(By.XPATH, button_tag)
-        button.click()
-        time.sleep(random.uniform(0.0, 0.4))
-        description = driver.find_element(By.XPATH, description_tag).text[:-9]  # Remove last 9 characters
-
-        logging.debug("Extracted title: %s", title)
-        logging.debug("Extracted company: %s", company)
-        logging.debug("Extracted description: %s", description)
-
-        return Job(title, company, description)
-    except InvalidURLException:
-        # Handle InvalidURLException
-        logging.error("Invalid URL format.")
-        raise InvalidURLException("Invalid URL format.")
-    except (NoSuchElementException, NoSuchAttributeException) as e:
-        # Handle PageElementNotFoundError
-        logging.error("Unable to find required job elements on the page: %s", e)
-        raise PageElementNotFoundError("Unable to find required job elements on the page.")
-    except InvalidArgumentException as e:
-        # Handle PageLoadError
-        logging.error("Failed to load the page: %s", e)
-        raise PageLoadError("Failed to load the page.")
-    except Exception as e:
-        # Handle other ScrapingError
-        logging.error("An unexpected error occurred: %s", e)
-        raise ScrapingError("An unexpected error occurred.")
-    finally:
-        driver.quit()
-
 
 def create_prompt(job, content_cv, is_cover_letter=True):
     """
@@ -112,9 +23,9 @@ def create_prompt(job, content_cv, is_cover_letter=True):
         str: A formatted prompt for generating content.
     """
     prompt = (
-        f"{job.title} role at {job.company}.\n"
+        f"{job.get_title} role at {job.get_company}.\n"
         "Here is the job description:\n"
-        f"<job description>{job.description}<\\job description>\n"
+        f"<job description>{job.get_description}<\\job description>\n"
         "And here is my resume:\n"
         f"<resume>{content_cv}<\\resume>"
     )
@@ -193,21 +104,6 @@ def copy_cover_letter(job, content_cv, use_gpt):
         print("Cover letter prompt copied to clipboard!")
 
 
-def is_valid_url(url):
-    """
-    Checks if a URL is valid.
-
-    Args:
-        url (str): The URL to be validated.
-
-    Returns:
-        bool: True if the URL is valid, False otherwise.
-    """
-    try:
-        result = urllib.parse.urlparse(url)
-        return all([result.scheme, result.netloc])
-    except Exception:
-        return False
 
 
 def to_use_gpt():
@@ -264,6 +160,7 @@ def get_job(url):
         logging.error(f"Page load error: {e}")
     except ScrapingError as e:
         logging.error(f"Scraping error: {e}")
+    print("Please check the URL.")
 
 
 def get_resume_content(file_path):
