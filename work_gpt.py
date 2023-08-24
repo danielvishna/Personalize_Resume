@@ -1,35 +1,60 @@
+import os
 import sys
 import time
-from selenium import webdriver
 import random
+import logging
+import pyperclip
+import urllib.parse
+from collections import namedtuple
+from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException, InvalidArgumentException
 from selenium.webdriver.common.by import By
-import pyperclip
-import os
 import openai
-from collections import namedtuple
-import urllib.parse
-import logging
 
+# Importing the Resume class from the files_works module
 from files_works import Resume
 
 # Define a named tuple 'Job' to represent job information (title, company, description)
 Job = namedtuple('Job', ['title', 'company', 'description'])
 
 
+# Define custom exceptions
+
+
+class ScrapingError(Exception):
+    """Custom exception for scraping errors."""
+
+
+class InvalidURLException(ScrapingError):
+    """Exception raised for invalid URL."""
+
+
+class PageElementNotFoundError(ScrapingError):
+    """Exception raised when a required page element is not found."""
+
+
+class PageLoadError(ScrapingError):
+    """Exception raised when there is an issue loading the page."""
+
+
 def scraping_job_data(url):
     """
     Scrapes job information from a given URL.
+
+    Args:
+        url (str): The URL of the job posting on LinkedIn.
 
     Returns:
         Job or None: A named tuple representing job information (title, company, description) if successful, otherwise None.
     """
     # Set up the Edge web driver in headless mode
-    op = webdriver.EdgeOptions()
-    op.add_argument('headless')
-    op.add_argument("--incognito")
-    driver = webdriver.Edge(options=op)
+    edge_options = webdriver.EdgeOptions()
+    edge_options.add_argument('headless')
+    edge_options.add_argument("--incognito")
+    driver = webdriver.Edge(options=edge_options)
     try:
+        if not is_valid_url(url):
+            raise InvalidURLException("Invalid URL")
         # XPaths for extracting job title, company, and job description from the LinkedIn job page.
         title_tag = "//h1[@class='top-card-layout__title font-sans text-lg papabear:text-xl font-bold leading-open " \
                     "text-color-text mb-0 topcard__title']"
@@ -49,27 +74,55 @@ def scraping_job_data(url):
         button.click()
         time.sleep(random.uniform(0.0, 0.4))
         description = driver.find_element(By.XPATH, description_tag).text[:-9]  # Remove last 9 characters
+
+        logging.debug("Extracted title: %s", title)
+        logging.debug("Extracted company: %s", company)
+        logging.debug("Extracted description: %s", description)
+
         return Job(title, company, description)
-    except (NoSuchElementException, NoSuchAttributeException):
-        # Handle the exception here
-        print(
-            "Error: Unable to find job elements on the page. Please recheck the URL, and contact the developer if the "
-            "error still occurs for an update.")
-        return
-    except InvalidArgumentException:
-        print("Please recheck the URL")
-        return
+    except InvalidURLException:
+        # Handle InvalidURLException
+        logging.error("Invalid URL format.")
+        raise InvalidURLException("Invalid URL format.")
+    except (NoSuchElementException, NoSuchAttributeException) as e:
+        # Handle PageElementNotFoundError
+        logging.error("Unable to find required job elements on the page: %s", e)
+        raise PageElementNotFoundError("Unable to find required job elements on the page.")
+    except InvalidArgumentException as e:
+        # Handle PageLoadError
+        logging.error("Failed to load the page: %s", e)
+        raise PageLoadError("Failed to load the page.")
     except Exception as e:
-        print("There is a problem contact the developer")
+        # Handle other ScrapingError
+        logging.error("An unexpected error occurred: %s", e)
+        raise ScrapingError("An unexpected error occurred.")
     finally:
         driver.quit()
 
 
-def create_prompt(job, cv, is_cove_letter=True):
-    prompt = f'{job.title} role at {job.company}.\nHere is the job description: \n<job description>{job.description}' \
-             f'<\\job description>\nAnd here is my resume: \n <resume>{cv}<\\resume>'.replace("  ", " "). \
-        replace("\n\n", "\n")
-    if is_cove_letter:
+def create_prompt(job, content_cv, is_cover_letter=True):
+    """
+    Creates a prompt for generating personalized content.
+
+    Args:
+        job (Job): A named tuple containing job information (title, company, description).
+        content_cv (str): The content of the resume to be copied.
+        is_cover_letter (bool): Whether the prompt is for a cover letter (True) or resume (False).
+
+    Returns:
+        str: A formatted prompt for generating content.
+    """
+    prompt = (
+        f"{job.title} role at {job.company}.\n"
+        "Here is the job description:\n"
+        f"<job description>{job.description}<\\job description>\n"
+        "And here is my resume:\n"
+        f"<resume>{content_cv}<\\resume>"
+    )
+
+    # Clean up the prompt
+    prompt = prompt.replace("  ", " ").replace("\n\n", "\n")
+    if is_cover_letter:
         prompt = "Please write a personalized cover letter for this " + prompt
     else:
         prompt = "Please personalize my resume for this " + prompt
@@ -77,6 +130,16 @@ def create_prompt(job, cv, is_cove_letter=True):
 
 
 def call_gpt(system_content, user_content):
+    """
+    Calls the GPT model to generate content.
+
+    Args:
+        system_content (str): The system instruction for GPT.
+        user_content (str): The user's input content.
+
+    Returns:
+        None
+    """
     chat_completion = openai.ChatCompletion.create(model="gpt-3.5-turbo",
                                                    messages=[{"role": "system", "content": system_content},
                                                              {"role": "user", "content": user_content}])
@@ -84,37 +147,39 @@ def call_gpt(system_content, user_content):
     pyperclip.copy(answer)
 
 
-def copy_resume(job, cv, use_gpt):
+def copy_resume(job, content_cv, use_gpt):
     """
-    Copies a personalized resume and job description to the clipboard.
+    Copies a personalized resume or prompt to the clipboard.
 
     Args:
         job (Job): A named tuple containing job information (title, company, description).
-        cv (str): The content of the resume to be copied.
+        content_cv (str): The content of the resume to be copied.
+        use_gpt (bool): Whether to use GPT model for content generation.
     """
     system_content = "You are a skilled resume personalization expert. Your expertise lies in customizing candidate " \
                      "resumes to fit specific job roles, even when their qualifications may not perfectly match the " \
                      "requirements. You will receive candidate resumes and job descriptions marked up with XML " \
                      "tags.Your objective is to personalize and ensure candidates' resumes are tailored effectively," \
                      " showcasing their relevant skills and experiences for each job."
-    personalize_resume = create_prompt(job, cv, False)
+    personalize_resume = create_prompt(job, content_cv, False)
     if use_gpt:
         call_gpt(system_content, personalize_resume)
-        print("Personalize resume copied to clipboard!")
+        print("Personalized resume copied to clipboard!")
     else:
         pyperclip.copy(system_content + "\n" + personalize_resume)
-        print("Personalize resume prompt copied to clipboard!")
+        print("Personalized resume prompt copied to clipboard!")
 
 
-def copy_cover_letter(job, cv, use_gpt):
+def copy_cover_letter(job, content_cv, use_gpt):
     """
-    Copies a personalized cover letter to the clipboard.
+    Copies a personalized cover letter or prompt to the clipboard.
 
     Args:
         job (Job): A named tuple containing job information (title, company, description).
-        cv (str): The content of the resume to be included in the cover letter.
+        content_cv (str): The content of the resume to be included in the cover letter.
+        use_gpt (bool): Whether to use GPT model for content generation.
     """
-    cover_letter = create_prompt(job, cv)
+    cover_letter = create_prompt(job, content_cv)
 
     system_content = "You are an expert recruitment consultant specializing in crafting compelling cover letters for " \
                      "job candidates. You excel at composing responses that help candidates shine, even when they " \
@@ -137,41 +202,67 @@ def is_valid_url(url):
         return False
 
 
-if __name__ == '__main__':
-    # Check if OpenAI API key is set
-    logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
-    use_gpt = True
+def to_use_gpt():
     while True:
-        input_gpt = input("Do you want to use OpenAI automation (yes, no or exit)? If you write no, you will need to"
-                          " enter manually the copied prompt (use chatgpt) \n")
+        input_gpt = input("Enter 'yes' to use OpenAI automation, 'no' to manually enter prompts, or 'exit' to quit: ")
+
         if input_gpt.lower() == "yes":
-
-            if "OPENAI_API_KEY" not in os.environ:
-                print("Error: OpenAI API key is not set.")
-                print("Please set the environment variable 'OPENAI_API_KEY' with your OpenAI API key.")
-                sys.exit()
-
-            # Set your OpenAI API key
-            openai.api_key = os.environ["OPENAI_API_KEY"]
-            break
+            check_openai_api_key()
+            return True
         elif input_gpt.lower() == "no":
-            use_gpt = False
-            break
+            return False
         elif input_gpt.lower() == "exit":
             sys.exit()
         else:
-            print("Pleas enter only yes, no or exit.")
+            print("Invalid input. Please enter only 'yes', 'no', or 'exit'.")
 
-    # Replace with the actual path to your CV file
-    file_path = 'C:\\Users\\DanielV\\Documents\\CV\\Daniel Vishna CV.pdf'
+
+def check_openai_api_key():
+    if "OPENAI_API_KEY" not in os.environ:
+        logging.error("Error: OpenAI API key is not set.")
+        logging.error("Please set the environment variable 'OPENAI_API_KEY' with your OpenAI API key.")
+        sys.exit()
+    # Set your OpenAI API key
+    openai.api_key = os.environ["OPENAI_API_KEY"]
+
+def get_job(url):
+    try:
+        return scraping_job_data(url)
+    except InvalidURLException as e:
+        logging.error(f"Invalid URL: {e}")
+    except PageElementNotFoundError as e:
+        logging.error(f"Page element not found: {e}")
+    except PageLoadError as e:
+        logging.error(f"Page load error: {e}")
+    except ScrapingError as e:
+        logging.error(f"Scraping error: {e}")
+
+
+def get_resume_content(file_path):
     resume = Resume()
-    CV = resume.read_file(file_path)
-    if not CV:
+    cv_content = resume.read_file(file_path)
+    if not cv_content or len(cv_content) == 0:
         logging.error("There is a problem with the resume file. Please check that you entered the correct file path.")
         sys.exit()
+    return cv_content
 
+
+if __name__ == '__main__':
+    # Check if OpenAI API key is set
+    logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
+
+    # Check if the OPENAI_API_KEY environment variable is set
+    use_gpt = to_use_gpt()
+
+    # Replace with the appropriate directory and file name
+    file_directory = 'C:/Users/DanielV/Documents/CV'
+    file_name = 'Daniel Vishna CV.pdf'
+
+    # Use os.path.join() to construct the file path
+    file_path = os.path.join(file_directory, file_name)
+
+    cv_content = get_resume_content(file_path)
     job = None
-    url_entry = ""
     while True:
         if not job:
             while True:
@@ -185,16 +276,16 @@ if __name__ == '__main__':
                     print("Invalid URL. Please enter a valid URL.")
             if url_entry.lower() == "exit":
                 break
-            job = scraping_job_data(url_entry)
+            job = get_job(url_entry)
         else:
-            inputs = input("Enter 1 to insert a new URL, 2 to get personalize resume, 3 to get the cover letter,"
-                           " or 'exit' to quit the program.\n")
-            if inputs == "1":
+            user_input = input("Enter 1 to insert a new URL, 2 to get personalize resume, 3 to get the cover letter,"
+                               " or 'exit' to quit the program.\n")
+            if user_input == "1":
                 url_entry = input("Enter the URL:\n")
-                job = scraping_job_data(url_entry)
-            elif inputs == "2":
-                copy_resume(job, CV, use_gpt)
-            elif inputs == "3":
-                copy_cover_letter(job, CV, use_gpt)
-            elif inputs.lower() == "exit":
+                job = get_job(url_entry)
+            elif user_input == "2":
+                copy_resume(job, cv_content, use_gpt)
+            elif user_input == "3":
+                copy_cover_letter(job, cv_content, use_gpt)
+            elif user_input.lower() == "exit":
                 break

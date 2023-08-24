@@ -12,17 +12,9 @@ class Resume:
             file_path (str): The file path to the PDF file.
 
         Returns:
-            str: The concatenated text extracted from all pages of the PDF.
+            str: The concatenated text extracted from all pages of the PDF,
+                 or None if there was an error.
         """
-        """
-          Reads a PDF file and extracts text from all pages.
-
-          Args:
-              file_path (str): The file path to the PDF file.
-
-          Returns:
-              str: The concatenated text extracted from all pages of the PDF, or None if there was an error.
-          """
         try:
             with open(file_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
@@ -61,13 +53,13 @@ class Resume:
 
     def __read_txt(self, file_path):
         """
-        Reads a docx file and extracts text.
+        Reads a text file and extracts text.
 
         Args:
-            file_path (str): The file path to the docx file.
+            file_path (str): The file path to the text file.
 
         Returns:
-            str: The extracted text from the docx, or None if there was an error.
+            str: The extracted text from the text file, or None if there was an error.
         """
         try:
             with open(file_path, "r") as f:
@@ -81,7 +73,16 @@ class Resume:
             return None
 
     def read_file(self, file_path):
-        if file_path.endswith(".docx"):  # todo: add supports for doc files
+        """
+        Reads a file and extracts text content based on the file format.
+
+        Args:
+            file_path (str): The file path to the input file.
+
+        Returns:
+            str: The extracted text content, or None if there was an error.
+        """
+        if file_path.endswith(".docx"):
             return self.__read_docx(file_path)
         elif file_path.endswith(".pdf"):
             return self.__read_pdf(file_path)
