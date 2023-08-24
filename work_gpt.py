@@ -20,7 +20,6 @@ Job = namedtuple('Job', ['title', 'company', 'description'])
 
 # Define custom exceptions
 
-
 class ScrapingError(Exception):
     """Custom exception for scraping errors."""
 
@@ -195,6 +194,15 @@ def copy_cover_letter(job, content_cv, use_gpt):
 
 
 def is_valid_url(url):
+    """
+    Checks if a URL is valid.
+
+    Args:
+        url (str): The URL to be validated.
+
+    Returns:
+        bool: True if the URL is valid, False otherwise.
+    """
     try:
         result = urllib.parse.urlparse(url)
         return all([result.scheme, result.netloc])
@@ -203,6 +211,12 @@ def is_valid_url(url):
 
 
 def to_use_gpt():
+    """
+    Asks the user whether to use OpenAI GPT for automation.
+
+    Returns:
+        bool: True if GPT is to be used, False otherwise.
+    """
     while True:
         input_gpt = input("Enter 'yes' to use OpenAI automation, 'no' to manually enter prompts, or 'exit' to quit: ")
 
@@ -218,6 +232,10 @@ def to_use_gpt():
 
 
 def check_openai_api_key():
+    """
+    Checks if the OpenAI API key is set in the environment variables.
+    Exits if the key is not set.
+    """
     if "OPENAI_API_KEY" not in os.environ:
         logging.error("Error: OpenAI API key is not set.")
         logging.error("Please set the environment variable 'OPENAI_API_KEY' with your OpenAI API key.")
@@ -225,7 +243,17 @@ def check_openai_api_key():
     # Set your OpenAI API key
     openai.api_key = os.environ["OPENAI_API_KEY"]
 
+
 def get_job(url):
+    """
+    Retrieves job information by scraping a given URL.
+
+    Args:
+        url (str): The URL of the job posting.
+
+    Returns:
+        Job or None: A named tuple representing job information if successful, otherwise None.
+    """
     try:
         return scraping_job_data(url)
     except InvalidURLException as e:
@@ -239,6 +267,15 @@ def get_job(url):
 
 
 def get_resume_content(file_path):
+    """
+    Reads and retrieves content from a resume file.
+
+    Args:
+        file_path (str): The path to the resume file.
+
+    Returns:
+        str: The content of the resume.
+    """
     resume = Resume()
     cv_content = resume.read_file(file_path)
     if not cv_content or len(cv_content) == 0:
@@ -247,7 +284,10 @@ def get_resume_content(file_path):
     return cv_content
 
 
-if __name__ == '__main__':
+def main():
+    """
+    Main program loop.
+    """
     # Check if OpenAI API key is set
     logging.basicConfig(level=logging.ERROR, format='%(levelname)s: %(message)s')
 
@@ -289,3 +329,7 @@ if __name__ == '__main__':
                 copy_cover_letter(job, cv_content, use_gpt)
             elif user_input.lower() == "exit":
                 break
+
+
+if __name__ == '__main__':
+    main()
