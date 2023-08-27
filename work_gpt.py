@@ -6,6 +6,7 @@ import openai
 # Importing the Resume class from the files_works module
 from files_works import Resume
 from job import *
+from applications_tracks import create_or_append_excel
 
 
 # Define custom exceptions
@@ -224,6 +225,10 @@ def main():
                 copy_resume(job, cv_content, use_gpt)
             elif user_input == "3":
                 copy_cover_letter(job, cv_content, use_gpt)
+            elif user_input == "4":
+                excel_file = 'Applications Tracks.xlsx'
+                file_path_ex = os.path.join(file_directory, excel_file)
+                create_or_append_excel(file_path_ex, job)
             elif user_input.lower() == "exit":
                 break
 

@@ -12,7 +12,7 @@ def test_scraping_job_data():
     job = scraping_job_data(url)
     assert job is not None
     assert job.title != ""
-    assert job.company != ""
+    assert job.company_name != ""
     assert job.description != ""
 
 def test_create_promt():

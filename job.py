@@ -45,26 +45,29 @@ class Job:
     Represents a job posting with its title, company, description, and URL.
     """
 
-    def __init__(self, title, company, description, url):
+    def __init__(self, title, company_name, description, url,  company_link, location):
         """
         Initialize a Job instance.
 
         Args:
             title (str): Title of the job.
-            company (str): Company offering the job.
+            company_name (str): Company offering the job.
             description (str): Description of the job.
             url (str): URL of the job posting.
         """
         self.title = title
-        self.company = company
+        self.company_name = company_name
         self.description = description
         self.url = url
+        self.company_link = company_link
+        self.location = location
+
 
     def __str__(self):
         """
         Return a formatted string representation of the Job instance.
         """
-        return f"Title: {self.title}\nCompany: {self.company}\nDescription: {self.description}"
+        return f"Title: {self.title}\nCompany: {self.company_name}\nDescription: {self.description}"
 
     def get_title(self):
         """
@@ -75,14 +78,14 @@ class Job:
         """
         return self.title
 
-    def get_company(self):
+    def get_company_name(self):
         """
-        Get the company offering the job.
+        Get the name of the company offering the job.
 
         Returns:
             str: The company name.
         """
-        return self.company
+        return self.company_name
 
     def get_description(self):
         """
@@ -101,6 +104,26 @@ class Job:
             str: The job posting URL.
         """
         return self.url
+
+    def get_location(self):
+        """
+        Get the location of the company offering the job.
+
+        Returns:
+            str: The company name.
+        """
+        return self.location
+
+    def get_company_link(self):
+        """
+        Get the link for the LinkedIn page of the company offering the job.
+
+        Returns:
+        str: The company name.
+        """
+        return self.company_link
+
+
 
 
 def get_driver():
@@ -153,21 +176,26 @@ def scraping_job_data(url):
         company_tag = "//a[@class='topcard__org-name-link topcard__flavor--black-link']"
         button_tag = '//button[text()="\n        Show more\n\n        "]'
         description_tag = "//div[@class='description__text description__text--rich']"
+        location_tag = "//span[@class='topcard__flavor topcard__flavor--bullet']"
 
         driver.get(url)
 
         # Extract job title, company, and description from the page
         title = get_element(driver, title_tag).text
-        company = get_element(driver, company_tag).text
+        company = get_element(driver, company_tag)
+        company_name = company.text
         time.sleep(random.uniform(0.0, 0.1))
         get_element(driver, button_tag).click()
         description = get_element(driver, description_tag).text[:-9]  # Remove last 9 characters
+        location_element = get_element(driver, location_tag)
+        location = location_element.text.strip()
+        company_link = company.get_attribute("href")
 
         logging.debug("Extracted title: %s", title)
         logging.debug("Extracted company: %s", company)
         logging.debug("Extracted description: %s", description)
 
-        return Job(title, company, description, url)
+        return Job(title, company_name, description, url, company_link, location)
     except InvalidURLException:
         # Handle InvalidURLException
         logging.error("Invalid URL format.")
