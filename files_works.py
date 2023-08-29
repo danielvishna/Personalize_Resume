@@ -1,6 +1,8 @@
-import PyPDF2
+# import PyPDF2
 import docx2txt
 import logging
+import fitz  # PyMuPDF
+
 
 
 class Resume:
@@ -16,14 +18,14 @@ class Resume:
                  or None if there was an error.
         """
         try:
-            with open(file_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                num_pages = len(pdf_reader.pages)
-                text = []
-                for page_number in range(num_pages):
-                    page = pdf_reader.pages[page_number]
-                    text.append(page.extract_text().strip())
-                return '\n'.join(text)
+            pdf_document = fitz.open(file_path)
+            num_pages = pdf_document.page_count
+            text = []
+            for page_number in range(num_pages):
+                page = pdf_document[page_number]
+                text.append(page.get_text("text").strip())
+            pdf_document.close()
+            return '\n'.join(text)
         except FileNotFoundError as e:
             logging.error(f"Error: The file '{file_path}' does not exist.")
             return None

@@ -24,9 +24,9 @@ def create_prompt(job, content_cv, is_cover_letter=True):
         str: A formatted prompt for generating content.
     """
     prompt = (
-        f"{job.get_title} role at {job.get_company}.\n"
+        f"{job.get_title()} role at {job.get_company_name()}.\n"
         "Here is the job description:\n"
-        f"<job description>{job.get_description}<\\job description>\n"
+        f"<job description>{job.get_description()}<\\job description>\n"
         "And here is my resume:\n"
         f"<resume>{content_cv}<\\resume>"
     )
@@ -103,8 +103,6 @@ def copy_cover_letter(job, content_cv, use_gpt):
     else:
         pyperclip.copy(system_content + "\n" + cover_letter)
         print("Cover letter prompt copied to clipboard!")
-
-
 
 
 def to_use_gpt():
@@ -214,13 +212,13 @@ def main():
                     print("Invalid URL. Please enter a valid URL.")
             if url_entry.lower() == "exit":
                 break
-            job = get_job(url_entry)
+            job = scraping_job_data(url_entry)
         else:
             user_input = input("Enter 1 to insert a new URL, 2 to get personalize resume, 3 to get the cover letter,"
-                               " or 'exit' to quit the program.\n")
+                               " 4 to add the job to the applications tracks file, or 'exit' to quit the program.\n")
             if user_input == "1":
                 url_entry = input("Enter the URL:\n")
-                job = get_job(url_entry)
+                job = scraping_job_data(url_entry)
             elif user_input == "2":
                 copy_resume(job, cv_content, use_gpt)
             elif user_input == "3":
@@ -231,6 +229,8 @@ def main():
                 create_or_append_excel(file_path_ex, job)
             elif user_input.lower() == "exit":
                 break
+            else:
+                print("Invalid input. Please enter only '1', '2', '3', '4' or 'exit'.")
 
 
 if __name__ == '__main__':

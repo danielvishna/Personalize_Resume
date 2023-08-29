@@ -1,32 +1,58 @@
-import os
-
 import openpyxl
 from openpyxl import Workbook
-from openpyxl.styles import Font, Border, Side
+from openpyxl.styles import Font, Border, Side, Alignment
 from datetime import date
 
+from openpyxl.utils import get_column_letter
 
-from job import scraping_job_data, Job
+def style_hyperlink(column, url, sheet):
+    """
+    Apply styling to the new row added to the Excel sheet.
 
+    Args:
+        sheet (Worksheet): The worksheet to which the new row has been added.
+        url (str): The url link we need to use as hyperlink.
+        column (int) : The index of the column we want to style.
+    """
+    sheet.cell(row=sheet.max_row, column=column).hyperlink = url
+    sheet.cell(row=sheet.max_row, column=column).font = Font(color="000000FF", underline="single")
 
 def style(sheet, job):
+    """
+    Apply styling to the new row added to the Excel sheet.
+
+    Args:
+        sheet (Worksheet): The worksheet to which the new row has been added.
+        job (Job): An instance of the Job class containing job details.
+    """
     # Add hyperlink to the "Link for the job ad" cell
-    sheet.cell(row=sheet.max_row, column=6).hyperlink = job.url
-    sheet.cell(row=sheet.max_row, column=6).font = Font(color="000000FF", underline="single")
+    if hasattr(job, 'url'):
+        style_hyperlink(6, job.get_url(), sheet)
 
-    sheet.cell(row=sheet.max_row, column=3).hyperlink = job.get_company_link()
-    sheet.cell(row=sheet.max_row, column=3).font = Font(color="000000FF", underline="single")
+    # Add hyperlink to the "Company" cell
+    if hasattr(job, 'get_company_link'):
+        style_hyperlink(3, job.get_company_link(), sheet)
 
-    # Apply border styling to the cells in the new row
+    # Apply border and alignment styling to the cells in the new row
     new_row = sheet[sheet.max_row]
     border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
                     bottom=Side(style='thin'))
+    alignment = Alignment(horizontal='center')  # Set alignment once
     for cell in new_row:
         cell.border = border
+        cell.alignment = alignment
 
 
 def create_or_append_excel(file, job):
+    """
+    Create or append data to an Excel workbook.
+
+    Args:
+        file (str): The path to the Excel file.
+        job (Job): An instance of the Job class containing job details.
+    """
     headers = ["No", "Title", "Company", "Location", "Date of send", "Link for the ad job"]
+
     # Check if the file exists
     try:
         workbook = openpyxl.load_workbook(file)
@@ -39,74 +65,26 @@ def create_or_append_excel(file, job):
         border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
                         bottom=Side(style='thin'))
         font = Font(bold=True)
+        alignment = Alignment(horizontal='center')
         for cell in sheet["1:1"]:
             cell.font = font
+            cell.alignment = alignment
             cell.border = border
-        #todo: add exception for open file
+
+    # Prepare data for the new row
     data = [sheet.max_row, job.get_title(), job.get_company_name(), job.get_location(),
             (date.today()).strftime("%d/%m/%Y"), job.get_title() + " " + job.get_company_name()]
+
     # Add data to the sheet
     sheet.append(data)
 
-    # # Add hyperlink to the "Link for the job ad" cell
-    # sheet.cell(row=sheet.max_row, column=5).hyperlink = job.url
-    # sheet.cell(row=sheet.max_row, column=5).font = Font(color="000000FF", underline="single")
+    # Apply styling to the new row
     style(sheet, job)
 
     # Save the workbook
-    workbook.save(file)
-
-# def create_excel(file_path, headers):
-#     workbook = Workbook()
-#     sheet = workbook.active
-#     sheet.append(headers)
-#     for cell in sheet["1:1"]:
-#         cell.font = Font(bold=True)
-#     workbook.save(file_path)
-#
-#
-# def get_number_of_rows(file_path):
-#     try:
-#         my_file = Path(file_path)
-#         if not my_file.is_file():
-#             return 1
-#
-#         workbook = openpyxl.load_workbook(file_path)
-#         sheet = workbook.active
-#         return sheet.max_row
-#     except FileNotFoundError:
-#         return 0  # File doesn't exist, so there are 0 rows
-
-
-# def prepare_row_data(file_path, url):
-#     job_data = scraping_job_data(url)
-#     row_number = get_number_of_rows(file_path)
-#     if row_number == 0:
-#         row_number = 1
-#     formatted_date = (date.today()).strftime("%d/%m/%Y")
-#
-#     row_data = [
-#         str(row_number),
-#         job_data.title,
-#         job_data.company,
-#         formatted_date,
-#         job_data.url
-#     ]
-#
-#     return row_data
-
-
-
-if __name__ == '__main__':
-    file_directory = 'C:/Users/DanielV/Documents/CV'
-    file_name = 'Applications Tracks.xlsx'
-    file_path = os.path.join(file_directory, file_name)
-    # my_file = Path(file_path)
-
-    # if not my_file.is_file():
-    #     create_excel(file_path, headers)
-
-    url = "https://www.linkedin.com/jobs/view/3651370729/?refId=b1f0bebf-cbd0-473a-b2b8-5a074d8588a2&trackingId=fPeyjCpxRzGwQoUqkW5Kbw%3D%3D"
-    job_data = Job("d", 'Fortinet', 'Backend Developer', 'https://www.linkedin.com/jobs/view/3651370729/?refId=b1f0bebf-cbd0-473a-b2b8-5a074d8588a2&trackingId=fPeyjCpxRzGwQoUqkW5Kbw%3D%3D') #scraping_job_data(url)
-
-    create_or_append_excel(file_path, job_data)
+    try:
+        workbook.save(file)
+    except PermissionError:
+        print("The file is open. Please close it and try again.")
+        return
+    print("Added new row to the tracker")
